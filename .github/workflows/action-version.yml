@@ -1,12 +1,16 @@
 name: Atualizar versao no README
 
 on:
-  push:
+  pull_request:
     branches:
-      - homologa
+      - main
+    types:
+      - closed
 
 jobs:
   update-version:
+    # Executa apenas se o Pull Request foi de fato merged (aceito) e veio de homologa
+    if: github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'homologa'
     runs-on: ubuntu-latest
     permissions: 
       contents: write
@@ -16,11 +20,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: main
 
       - name: Verificar mensagens de commit e calcular versao
         id: versioning
         run: |
-          # Correção aqui: todo este bloco foi indentado para a direita
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
           echo "Ultima versão encontrada: $LAST_TAG"
 
@@ -29,8 +33,10 @@ jobs:
           MINOR=$(echo $VERSION | cut -d. -f2)
           PATCH=$(echo $VERSION | cut -d. -f3)
 
+          # Pega todos os commits que entraram na main vindos desse PR / homologa desde a ultima tag
           COMMIT_LOGS=$(git log $LAST_TAG..HEAD --oneline 2>/dev/null || git log --oneline)
 
+          # Analisa o conjunto de commits para definir o nível do Semantic Versioning uma única vez
           if echo "$COMMIT_LOGS" | grep -E "BREAKING CHANGE|feat!(\(.*\))?:|fix!(\(.*\))?:"; then
             MAJOR=$((MAJOR + 1))
             MINOR=0
@@ -38,28 +44,42 @@ jobs:
           elif echo "$COMMIT_LOGS" | grep -E "feat(\(.*\))?:"; then
             MINOR=$((MINOR + 1))
             PATCH=0
-          elif echo "$COMMIT_LOGS" | grep -E "(fix|bug)(\(.*\))?:"; then # Correção aqui: adicionado 'then'
+          elif echo "$COMMIT_LOGS" | grep -E "(fix|bug)(\(.*\))?:"; then
             PATCH=$((PATCH + 1))
           fi
 
-          NEW_TAG="v$MAJOR.$MINOR.$PATCH" # Correção aqui: ajustado de NEWTAG para NEW_TAG
+          NEW_TAG="v$MAJOR.$MINOR.$PATCH"
           echo "Nova versão calculada: $NEW_TAG"
+
+          # Cria o changelog unificado com as mensagens dos commits da nova versão
+          CHANGELOG=$(git log $LAST_TAG..HEAD --pretty=format:"- %s" 2>/dev/null || echo "- Atualização de versão")
 
           echo "new_version=$NEW_TAG" >> $GITHUB_OUTPUT
           echo "old_version=$LAST_TAG" >> $GITHUB_OUTPUT
+          
+          # Salva o changelog em multiline para usar nas próximas etapas se necessário
+          delimiter="$(openssl rand -hex 8)"
+          echo "changelog<<${delimiter}" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "${delimiter}" >> $GITHUB_OUTPUT
 
       - name: Atualizar o arquivo README.md
         run: |
           OLD_VER="${{ steps.versioning.outputs.old_version }}"
           NEW_VER="${{ steps.versioning.outputs.new_version }}"
+          CHANGELOG="${{ steps.versioning.outputs.changelog }}"
 
-          if grep -q "$OLD_VER" README.md; then
-            sed -i "s/$OLD_VER/$NEW_VER/g" README.md
+          # Monta o bloco com a nova versão e o log consolidado dos commits
+          NEW_SECTION="## Versão atual: $NEW_VER\n\n### O que há de novo:\n$CHANGELOG\n"
+
+          if grep -q "## Versão atual:" README.md; then
+            # Substitui a seção antiga pela nova versão e histórico
+            sed -i "s/## Versão atual:.*/$NEW_SECTION/g" README.md
           else
-            echo -e "## Versão atual: $NEW_VER\n\n$(cat README.md)" > README.md
+            echo -e "$NEW_SECTION\n\n$(cat README.md)" > README.md
           fi
 
-      - name: Commit e Push das alterações
+      - name: Commit e Push das alterações na main
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -69,7 +89,7 @@ jobs:
           if ! git diff --cached --quiet; then
             git commit -m "chore: atualiza versao no README para ${{ steps.versioning.outputs.new_version }} [skip ci]"
             git tag ${{ steps.versioning.outputs.new_version }}
-            git push origin homologa --tags
+            git push origin main --tags
           else
-            echo "Nenhuma alteração na versão." # Correção aqui: fechamento das aspas
+            echo "Nenhuma alteração na versão."
           fi
