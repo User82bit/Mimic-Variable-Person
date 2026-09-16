@@ -1,4 +1,4 @@
-name: Atualizar versao no README
+name: Gerar Release e Versao
 
 on:
   pull_request:
@@ -8,10 +8,9 @@ on:
       - closed
 
 jobs:
-  update-version:
-    # Executa apenas se o Pull Request foi de fato merged (aceito) e veio de homologa
+  release:
     if: github.event.pull_request.merged == true && github.event.pull_request.head.ref == 'homologa'
-    runs-on: ubuntu-latest
+    runs-on: windows-latest # Alterado para windows-latest já que é um projeto C# para terminal
     permissions: 
       contents: write
 
@@ -25,71 +24,72 @@ jobs:
       - name: Verificar mensagens de commit e calcular versao
         id: versioning
         run: |
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          echo "Ultima versão encontrada: $LAST_TAG"
+          $LAST_TAG = git describe --tags --abbrev=0 2>$null
+          if (-not $LAST_TAG) { $LAST_TAG = "v0.0.0" }
+          Write-Host "Ultima versão encontrada: $LAST_TAG"
 
-          VERSION=${LAST_TAG#v}
-          MAJOR=$(echo $VERSION | cut -d. -f1)
-          MINOR=$(echo $VERSION | cut -d. -f2)
-          PATCH=$(echo $VERSION | cut -d. -f3)
+          $VERSION = $LAST_TAG.TrimStart('v')
+          $PARTS = $VERSION.Split('.')
+          [int]$MAJOR = $PARTS[0]
+          [int]$MINOR = $PARTS[1]
+          [int]$PATCH = $PARTS[2]
 
-          # Pega todos os commits que entraram na main vindos desse PR / homologa desde a ultima tag
-          COMMIT_LOGS=$(git log $LAST_TAG..HEAD --oneline 2>/dev/null || git log --oneline)
+          $COMMIT_LOGS = git log "$LAST_TAG..HEAD" --oneline 2>$null
+          if (-not $COMMIT_LOGS) { $COMMIT_LOGS = git log --oneline }
 
-          # Analisa o conjunto de commits para definir o nível do Semantic Versioning uma única vez
-          if echo "$COMMIT_LOGS" | grep -E "BREAKING CHANGE|feat!(\(.*\))?:|fix!(\(.*\))?:"; then
-            MAJOR=$((MAJOR + 1))
-            MINOR=0
-            PATCH=0
-          elif echo "$COMMIT_LOGS" | grep -E "feat(\(.*\))?:"; then
-            MINOR=$((MINOR + 1))
-            PATCH=0
-          elif echo "$COMMIT_LOGS" | grep -E "(fix|bug)(\(.*\))?:"; then
-            PATCH=$((PATCH + 1))
-          fi
+          if ($COMMIT_LOGS -match "BREAKING CHANGE|feat!(\(.*\))?:|fix!(\(.*\))?:") {
+              $MAJOR++
+              $MINOR = 0
+              $PATCH = 0
+          } elseif ($COMMIT_LOGS -match "feat(\(.*\))?:") {
+              $MINOR++
+              $PATCH = 0
+          } elseif ($COMMIT_LOGS -match "(fix|bug)(\(.*\))?:") {
+              $PATCH++
+          }
 
-          NEW_TAG="v$MAJOR.$MINOR.$PATCH"
-          echo "Nova versão calculada: $NEW_TAG"
+          $NEW_TAG = "v$MAJOR.$MINOR.$PATCH"
+          Write-Host "Nova versão calculada: $NEW_TAG"
 
-          # Cria o changelog unificado com as mensagens dos commits da nova versão
-          CHANGELOG=$(git log $LAST_TAG..HEAD --pretty=format:"- %s" 2>/dev/null || echo "- Atualização de versão")
+          # Coleta os logs para montar o corpo do Release
+          $CHANGELOG = git log "$LAST_TAG..HEAD" --pretty=format:"- %s" 2>$null
+          if (-not $CHANGELOG) { $CHANGELOG = "- Atualização de versão" }
 
-          echo "new_version=$NEW_TAG" >> $GITHUB_OUTPUT
-          echo "old_version=$LAST_TAG" >> $GITHUB_OUTPUT
-          
-          # Salva o changelog em multiline para usar nas próximas etapas se necessário
-          delimiter="$(openssl rand -hex 8)"
-          echo "changelog<<${delimiter}" >> $GITHUB_OUTPUT
-          echo "$CHANGELOG" >> $GITHUB_OUTPUT
-          echo "${delimiter}" >> $GITHUB_OUTPUT
+          # Salva as variáveis para as próximas etapas
+          echo "new_version=$NEW_TAG" >> $env:GITHUB_OUTPUT
+          echo "old_version=$LAST_TAG" >> $env:GITHUB_OUTPUT
 
-      - name: Atualizar o arquivo README.md
+          # Formata o changelog multilinha para o step de Release
+          $delimiter = [System.Guid]::NewGuid().ToString()
+          echo "changelog<<$delimiter" >> $env:GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $env:GITHUB_OUTPUT
+          echo "$delimiter" >> $env:GITHUB_OUTPUT
+
+      - name: Configurar .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0' # Ajuste para a versão do .NET que você está usando no VS
+
+      - name: Compilar projeto (Publish)
         run: |
-          OLD_VER="${{ steps.versioning.outputs.old_version }}"
-          NEW_VER="${{ steps.versioning.outputs.new_version }}"
-          CHANGELOG="${{ steps.versioning.outputs.changelog }}"
+          dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o ./publish
 
-          # Monta o bloco com a nova versão e o log consolidado dos commits
-          NEW_SECTION="## Versão atual: $NEW_VER\n\n### O que há de novo:\n$CHANGELOG\n"
-
-          if grep -q "## Versão atual:" README.md; then
-            # Substitui a seção antiga pela nova versão e histórico
-            sed -i "s/## Versão atual:.*/$NEW_SECTION/g" README.md
-          else
-            echo -e "$NEW_SECTION\n\n$(cat README.md)" > README.md
-          fi
-
-      - name: Commit e Push das alterações na main
+      - name: Criar Tag no Git
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git tag ${{ steps.versioning.outputs.new_version }}
+          git push origin main --tags
 
-          git add README.md
-
-          if ! git diff --cached --quiet; then
-            git commit -m "chore: atualiza versao no README para ${{ steps.versioning.outputs.new_version }} [skip ci]"
-            git tag ${{ steps.versioning.outputs.new_version }}
-            git push origin main --tags
-          else
-            echo "Nenhuma alteração na versão."
-          fi
+      - name: Criar Release no GitHub
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.versioning.outputs.new_version }}
+          name: Versão ${{ steps.versioning.outputs.new_version }}
+          body: |
+            ### O que há de novo nesta versão:
+            ${{ steps.versioning.outputs.changelog }}
+          files: |
+            ./publish/*.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
