@@ -1,6 +1,6 @@
 #  Mimic-Variable-Person (M.V.P)
 
-[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE.txt)
 [![Version](https://img.shields.io/badge/version-v0.2.1--beta-orange.svg)](#)
 [![Language](https://img.shields.io/badge/language-C%23_.NET-512BD4?logo=csharp&logoColor=white)](https://dotnet.microsoft.com/en-us/download)
 
