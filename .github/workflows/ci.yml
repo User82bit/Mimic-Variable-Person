@@ -1,0 +1,33 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches:
+      - homologa
+      - feature/*
+  pull_request:
+    branches:
+      - homologa
+      - main
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0' # Ajuste conforme a versão usada no seu projeto
+
+      - name: Restaurar dependências
+        run: dotnet restore
+
+      - name: Compilar (Build)
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Executar Testes (se houver)
+        run: dotnet test --no-build --configuration Release
