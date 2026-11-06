@@ -1,0 +1,23 @@
+{
+  "version": "1.0",
+  "intents": [
+    {
+      "intent": "...",
+      "subintents": [
+        {
+          "subintent": "...",
+          "inputs": [
+            {
+              "var": "..."
+            }
+          ],
+          "outputs": [
+            {
+              "var": "..."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
