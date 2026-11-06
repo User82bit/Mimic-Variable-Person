@@ -1,33 +1,75 @@
-#  Mimic-Variable-Person (M.V.P)
+# Mimic-Variable-Person (M.V.P.)
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE.txt)
 [![Version](https://img.shields.io/github/v/release/User82bit/Mimic-Variable-Person?display_name=tag)](../../releases/latest)
-[![Language](https://img.shields.io/badge/language-C%23_.NET-512BD4?logo=csharp&logoColor=white)](https://dotnet.microsoft.com/en-us/download)
+[![Language](https://img.shields.io/badge/language-Rust-000000?logo=rust&logoColor=white)](https://www.rust-lang.org/)
 
-O **Mimic-Variable-Person (MVP)** é uma arquitetura de inteligência artificial modular inspirada na dinâmica de adaptação comportamental e cognitiva. O projeto é estruturado para simular processos neurais, emocionais e físicos de um agente autônomo.
+O **Mimic-Variable-Person (MVP)** é um projeto experimental de agente modular, planejado para organizar capacidades cognitivas e comportamentais em módulos independentes. O projeto está em fase inicial de migração e estruturação em **Rust**.
+
+> **Estado atual:** a estrutura de inicialização e os módulos-base estão configurados. Os módulos cognitivos ainda são esqueletos; os arquivos JSON são modelos de dados e ainda não são carregados pelo programa.
 
 ---
 
-##  Arquitetura do Projeto
-
-O sistema é dividido em dois núcleos principais: **Cognição (Brain)** e **Atuação (Members)**.
+## Estrutura atual
 
 ```text
-MimicAI/
-├──  Brain/              # Módulos cognitivos e comportamentais
-│   ├── Thought.cs         # Processamento de pensamentos e dados de entrada
-│   ├── ThoughtData.json   # Base de dados de pensamentos
-│   ├── Feelings.cs        # Estados emocionais e reatividade
-│   └── FeelingsData.json  # Parâmetros de comportamento emocional
-├──  Members/            # Módulos de atuadores e ações físicas/lógicas
-│   ├── Arms.cs            # Controle de ações superiores/interações
-│   ├── ArmsData.json      # Dados de calibração dos braços
-│   ├── Legs.cs            # Controle de locomoção e posicionamento
-│   └── LegsData.json      # Dados de movimentação
-├──  GlobalFuncs.cs      # Utilitários globais e manipulação de datasets
-└──  Program.cs          # Ponto de entrada e inicialização do sistema
+Mimic-Variable-Person/
+├── data/
+│   └── brain/
+│       ├── feelings-data.json
+│       └── thought-data.json
+├── src/
+│   ├── brain/
+│   │   ├── feelings.rs
+│   │   ├── memory.rs
+│   │   ├── mod.rs
+│   │   └── thought.rs
+│   └── main.rs
+├── .github/
+│   └── workflows/
+│       ├── ci.yml
+│       ├── release-production.yml
+│       └── stale.yml
+├── Cargo.toml
+└── Cargo.lock
 ```
 
-## 📄 Licença
+### Organização
 
-Este projeto está licenciado sob a **[Licença Apache 2.0](LICENSE)** — consulte o arquivo de licença para obter mais detalhes.
+- **Brain:** ponto de entrada para os módulos de sentimentos, memória e pensamento.
+- **Data:** modelos JSON separados do código-fonte. A leitura, validação e persistência desses dados ainda serão implementadas.
+- **GitHub Actions:** valida formatação, executa Clippy, testes e compilação em Linux e Windows.
+
+A antiga estrutura C#/.NET foi removida durante a migração. Módulos de atuação física/lógica ainda não foram recriados em Rust.
+
+---
+
+## Requisitos
+
+- Rust **1.85.0 ou superior** (edição 2024).
+- Cargo, instalado junto com o toolchain Rust.
+
+Instale o toolchain pelo site oficial: https://www.rust-lang.org/tools/install
+
+## Executar localmente
+
+Na raiz do repositório:
+
+```bash
+cargo run
+```
+
+## Verificações de desenvolvimento
+
+```bash
+cargo fmt --all -- --check
+cargo clippy --all-targets --all-features -- -D warnings
+cargo test --all-targets
+cargo build --release
+```
+
+---
+
+## Licença
+
+Este projeto está licenciado sob a **[Apache License 2.0](LICENSE.txt)**.
