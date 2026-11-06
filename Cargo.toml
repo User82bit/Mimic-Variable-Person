@@ -1,6 +1,10 @@
 [package]
-name = "MimicIA"
+name = "mimic-ia"
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.85"
+description = "Arquitetura experimental de agente modular Mimic."
+license = "Apache-2.0"
+readme = "README.md"
 
 [dependencies]

@@ -1,2 +1,14 @@
-/target
-/.vs
+# Rust build output
+/target/
+
+# IDEs and editors
+/.vs/
+/.idea/
+.vscode/
+
+# Rust editor backups
+*.rs.bk
+
+# Local operating-system files
+.DS_Store
+Thumbs.db

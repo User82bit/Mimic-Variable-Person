@@ -1,3 +1,6 @@
+mod brain;
+
 fn main() {
-    println!("Hello, world!");
+    println!("Iniciando MimicIA...");
+    brain::initialize();
 }
