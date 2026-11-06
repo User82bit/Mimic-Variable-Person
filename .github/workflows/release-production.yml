@@ -1,10 +1,10 @@
-name: Release Production
+name: Release Build (Rust)
 
 on:
   workflow_dispatch:
     inputs:
       version_type:
-        description: "Version Increment"
+        description: "Tipo de versão pretendido (informativo; não cria tag ou release)"
         required: true
         type: choice
         options:
@@ -12,18 +12,41 @@ on:
           - minor
           - major
 
-jobs:
-  release:
-    runs-on: windows-latest
+permissions:
+  contents: read
 
-    permissions:
-      contents: write
+jobs:
+  build:
+    name: Build Windows x64
+    runs-on: windows-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Show Version Type
+      - name: Install stable Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Show selected version type
         shell: pwsh
         run: |
-          Write-Host "Selected version: ${{ github.event.inputs.version_type }}"
+          Write-Host "Selected version increment: ${{ inputs.version_type }}"
+          Write-Host "This workflow validates and builds the application; it does not publish a GitHub Release."
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run tests
+        run: cargo test --locked --all-targets
+
+      - name: Build release
+        run: cargo build --locked --release
+
+      - name: Upload Windows executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: mimic-ia-windows-x64
+          path: target/release/mimic-ia.exe
+          if-no-files-found: error
