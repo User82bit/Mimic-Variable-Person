@@ -1,0 +1,22 @@
+name: Marcar itens inativos (Stale)
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Roda todo dia à meia-noite
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/stale@v9
+        with:
+          days-before-stale: 30
+          days-before-close: 7
+          stale-issue-message: 'Esta issue foi marcada como inativa por falta de movimentação recente. Ela será fechada em 7 dias se não houver novas respostas.'
+          stale-pr-message: 'Este Pull Request foi marcado como inativo. Ele será fechado em 7 dias caso não seja atualizado.'
+          stale-issue-label: 'inativo'
+          stale-pr-label: 'inativo'
